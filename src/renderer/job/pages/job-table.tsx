@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import JobFilter, { JobFilterOptions } from '../components/job-filter'
 
 interface JobPosting {
   id: string
@@ -10,9 +11,15 @@ interface JobPosting {
   crawledAt: string
 }
 
+const initialFilters: JobFilterOptions = {
+  searchText: '',
+  source: '',
+}
+
 export default function JobTable() {
   const [savedJobs, setSavedJobs] = useState<JobPosting[]>([])
   const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState<JobFilterOptions>(initialFilters)
 
   useEffect(() => {
     loadSavedJobs()
@@ -30,23 +37,50 @@ export default function JobTable() {
     }
   }
 
+  // 필터링된 공고 목록
+  const filteredJobs = useMemo(() => {
+    return savedJobs.filter(job => {
+      // 검색어 필터 (제목만)
+      if (filters.searchText) {
+        const searchLower = filters.searchText.toLowerCase()
+        const titleMatch = job.title.toLowerCase().includes(searchLower)
+        if (!titleMatch) return false
+      }
+
+      // 출처 필터
+      return !(filters.source && job.source !== filters.source);
+
+
+    })
+  }, [savedJobs, filters])
+
+  const handleFilterReset = () => {
+    setFilters(initialFilters)
+  }
+
   return (
     <div className="flex-1 p-8 overflow-hidden flex flex-col">
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-white">저장된 공고 조회</h2>
         <p className="text-slate-400 mt-2">
-          {loading ? '로딩 중...' : `총 ${savedJobs.length}개의 공고`}
+          {loading
+            ? '로딩 중...'
+            : `총 ${savedJobs.length}개 중 ${filteredJobs.length}개 표시`}
         </p>
       </div>
+
+      <JobFilter filters={filters} onFilterChange={setFilters} onReset={handleFilterReset} />
 
       <div className="flex-1 overflow-y-auto bg-slate-900 rounded-lg">
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <p className="text-slate-500">로딩 중...</p>
           </div>
-        ) : savedJobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
           <div className="h-full flex items-center justify-center">
-            <p className="text-slate-500">저장된 공고가 없습니다.</p>
+            <p className="text-slate-500">
+              {savedJobs.length === 0 ? '저장된 공고가 없습니다.' : '조건에 맞는 공고가 없습니다.'}
+            </p>
           </div>
         ) : (
           <table className="w-full">
@@ -73,7 +107,7 @@ export default function JobTable() {
               </tr>
             </thead>
             <tbody>
-              {savedJobs.map(job => (
+              {filteredJobs.map(job => (
                 <tr
                   key={job.id}
                   className="border-t border-slate-800 hover:bg-slate-800/50 transition-colors"

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import { JobService } from './job/services'
 
@@ -52,6 +52,12 @@ app.whenReady().then(() => {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+
+  // 외부 링크를 시스템 브라우저로 열기
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
   })
 
   win.webContents.openDevTools()
