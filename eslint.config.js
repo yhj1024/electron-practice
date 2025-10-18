@@ -71,7 +71,8 @@ export default [
 
       // 일반 규칙
       'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'prefer-const': 'error'
+      'prefer-const': 'error',
+      'quote-props': ['error', 'as-needed'] // 필요한 경우에만 따옴표 요구
     },
     settings: {
       react: {

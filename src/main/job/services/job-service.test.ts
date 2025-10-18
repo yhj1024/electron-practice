@@ -49,11 +49,7 @@ describe('JobService with File Storage', () => {
 
     console.log(`✅ ${jobs.length}개 공고 크롤링 완료`)
 
-    // crawlSite는 raw 데이터만 저장하므로 normalized 데이터 수동 저장
-    const storage = new (await import('../storage/job-storage')).JobStorage({ dataDir: testDir })
-    await storage.saveNormalizedData(jobs)
-
-    // JSON 파일 생성 확인
+    // JSON 파일 생성 확인 (crawlSite가 자동으로 raw + normalized 저장)
     const rawFilePath = path.join(testDir, 'wanted-raw.json')
     const normalizedFilePath = path.join(testDir, 'normalized.json')
 

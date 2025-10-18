@@ -35,6 +35,7 @@ export class JobService {
           const rawJobs = await crawler.fetchJobList(options)
           jobs = rawJobs.map(raw => adapter.adapt(raw))
           await this.storage.saveRawData('wanted', rawJobs)
+          await this.storage.saveNormalizedData(jobs)
         } finally {
           await crawler.close()
         }
@@ -48,6 +49,7 @@ export class JobService {
           const rawJobs = await crawler.fetchJobList(options)
           jobs = rawJobs.map(raw => adapter.adapt(raw))
           await this.storage.saveRawData('saramin', rawJobs)
+          await this.storage.saveNormalizedData(jobs)
         } finally {
           await crawler.close()
         }
@@ -61,6 +63,7 @@ export class JobService {
           const rawJobs = await crawler.fetchJobList(options)
           jobs = rawJobs.map(raw => adapter.adapt(raw))
           await this.storage.saveRawData('jumpit', rawJobs)
+          await this.storage.saveNormalizedData(jobs)
         } finally {
           await crawler.close()
         }

@@ -107,6 +107,7 @@ export class WantedCrawler implements ICrawler<WantedRawJob> {
    */
   private normalizeLocation(location: string): string {
     // 간단한 매핑 (추후 확장 가능)
+    // noinspection NonAsciiCharacters
     const locationMap: Record<string, string> = {
       강남구: 'seoul.gangnam-gu',
       서초구: 'seoul.seocho-gu',

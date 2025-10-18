@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { JobService } from './services'
+import { JobService } from './job/services'
 
 const VITE_DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
 const VITE_PRELOAD_PATH = process.env['ELECTRON_PRELOAD_URL']

@@ -3,7 +3,7 @@
  * IPC 브릿지: Renderer ↔ Main 프로세스 안전한 통신
  */
 import { contextBridge, ipcRenderer } from 'electron'
-import { CrawlerOptions, JobPosting } from '../main/crawler'
+import { CrawlerOptions, JobPosting } from '../main/job/crawler'
 
 // Renderer에 노출할 안전한 API
 const api = {
