@@ -15,14 +15,14 @@ export class WantedAdapter implements IAdapter<WantedRawJob> {
     return {
       id: `wanted-${raw.id}`,
       source: 'wanted',
-      title: raw.title,
-      company: raw.company,
-      url: raw.url,
-      imageUrl: raw.imageUrl,
-      location: raw.location,
+      title: raw.position,
+      company: raw.company.name,
+      url: `https://www.wanted.co.kr/wd/${raw.id}`,
+      imageUrl: raw.title_img.thumb,
+      location: `${raw.address.location} ${raw.address.district}`,
       requirements: {
-        experience: raw.experience,
-        employmentType: raw.employmentType,
+        experience: `${raw.annual_from}~${raw.annual_to}년`,
+        employmentType: raw.employment_type,
       },
       crawledAt: new Date().toISOString(),
       rawData: raw, // 원본 데이터 보관

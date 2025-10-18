@@ -1,14 +1,34 @@
 /**
- * 원티드 원본 데이터 구조
- * (실제 크롤링 결과 형식)
+ * 원티드 API 응답 데이터 구조
+ * GET /api/chaos/navigation/v1/results
  */
 export interface WantedRawJob {
-  id: string // 공고 ID
-  title: string // 공고 제목
-  company: string // 회사명
-  imageUrl?: string // 공고 이미지 URL
-  location: string // 근무지
-  experience?: string // 경력 요구사항
-  employmentType?: string // 고용 형태 (정규직, 계약직 등)
-  url: string // 공고 URL
+  id: number // 공고 ID
+  position: string // 직무명
+  company: {
+    id: number
+    name: string
+  }
+  title_img: {
+    origin?: string
+    thumb?: string
+    video?: string | null
+  }
+  address: {
+    country: string
+    location: string // 시/도 (예: 서울)
+    district: string // 구 (예: 강남구)
+  }
+  annual_from: number // 최소 경력 (년)
+  annual_to: number // 최대 경력 (년)
+  employment_type: string // 고용 형태 (regular, contract 등)
+  reward_total?: string // 보상금 (사용 안 함)
+  is_bookmark?: boolean
+}
+
+/**
+ * 원티드 API 응답 래퍼
+ */
+export interface WantedApiResponse {
+  data: WantedRawJob[]
 }

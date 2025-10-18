@@ -5,7 +5,7 @@ import { SaraminCrawler } from '../crawler'
 import { SaraminAdapter } from '../crawler'
 import { JumpitCrawler } from '../crawler'
 import { JumpitAdapter } from '../crawler'
-import { JobStorage } from '../storage'
+import { JobStorage, StorageOptions } from '../storage'
 
 /**
  * 채용 공고 서비스
@@ -14,8 +14,8 @@ import { JobStorage } from '../storage'
 export class JobService {
   private storage: JobStorage
 
-  constructor(storage?: JobStorage) {
-    this.storage = storage || new JobStorage()
+  constructor(options?: StorageOptions) {
+    this.storage = new JobStorage(options)
   }
 
   /**

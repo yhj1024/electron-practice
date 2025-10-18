@@ -4,12 +4,20 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].js',
+        },
+      },
+    },
   },
   renderer: {
-    plugins: [react(), tailwindcss()]
-  }
+    plugins: [react(), tailwindcss()],
+  },
 })

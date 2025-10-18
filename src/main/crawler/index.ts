@@ -4,7 +4,7 @@
 
 // 공통 타입 및 유틸
 export * from './common/types'
-export * from './common/browser'
+export * from './common/http-client'
 
 // 원티드
 export * from './wanted/types'
