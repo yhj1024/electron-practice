@@ -93,6 +93,33 @@ When adding new code:
 
 ## Code Style
 
+### Language Requirements
+
+**IMPORTANT**: All test code and comments must be written in Korean.
+
+- **Test descriptions**: Use Korean for `describe()`, `it()`, `test()` blocks
+- **Code comments**: All inline comments, JSDoc, and documentation comments in Korean
+- **Production code**: Variable/function names in English, comments in Korean
+
+**Example**:
+```typescript
+// 사용자 인증 상태를 확인합니다
+function checkAuthStatus(user: User) {
+  // 토큰이 만료되었는지 검증
+  if (isTokenExpired(user.token)) {
+    return false
+  }
+  return true
+}
+
+// 테스트 예시
+describe('사용자 인증', () => {
+  it('토큰이 만료되면 false를 반환해야 함', () => {
+    // 테스트 코드
+  })
+})
+```
+
 ### ESLint Configuration
 
 Uses flat config format (`eslint.config.js`) with:
