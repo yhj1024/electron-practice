@@ -9,6 +9,14 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import JobFilter, { JobFilterOptions } from '../components/job-filter'
+import JobDetailModal from '../components/job-detail-modal'
+import AiChatModal from '../components/ai-chat-modal'
+
+interface AiChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+}
 
 interface JobPosting {
   id: string
@@ -18,6 +26,16 @@ interface JobPosting {
   url: string
   location?: string
   crawledAt: string
+  detailContent?: string
+  detailLoadedAt?: string
+  aiPrompt?: string
+  aiResponse?: string
+  aiRespondedAt?: string
+  aiMessages?: AiChatMessage[]
+  aiLastReadAt?: string
+  requirements?: {
+    experience?: string
+  }
 }
 
 const initialFilters: JobFilterOptions = {
@@ -28,13 +46,79 @@ const initialFilters: JobFilterOptions = {
 export default function JobTable() {
   const [savedJobs, setSavedJobs] = useState<JobPosting[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const [filters, setFilters] = useState<JobFilterOptions>(initialFilters)
   const [sorting, setSorting] = useState<SortingState>([])
+  const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null)
+  const [aiChatJob, setAiChatJob] = useState<JobPosting | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadSavedJobs()
+
+    // 상세 내용 로드 이벤트 리스너 등록
+    window.api.onJobDetailLoaded((updatedJob: JobPosting) => {
+      setSavedJobs(prev => prev.map(job => (job.id === updatedJob.id ? updatedJob : job)))
+    })
+
+    window.api.onJobDetailsCompleted(() => {
+      setLoadingDetails(false)
+      console.log('✅ 모든 상세 내용 로드 완료')
+    })
+
+    window.api.onJobDetailsStopped(() => {
+      setLoadingDetails(false)
+      console.log('⏹️ 상세 내용 로드 중단됨')
+    })
+
+    // AI 채팅 스트리밍 청크 이벤트 리스너
+    window.api.onAiChatChunk(({ jobId, chunk }) => {
+      setSavedJobs(prev =>
+        prev.map(job => {
+          if (job.id !== jobId) return job
+
+          const messages = job.aiMessages || []
+          const lastMessage = messages[messages.length - 1]
+
+          // 마지막 메시지가 assistant이고 "답변을 준비 중입니다..."이거나 이미 응답 중이면 업데이트
+          if (lastMessage && lastMessage.role === 'assistant') {
+            const updatedMessages = [...messages]
+            updatedMessages[updatedMessages.length - 1] = {
+              ...lastMessage,
+              content: lastMessage.content.startsWith('답변을 준비 중')
+                ? chunk
+                : lastMessage.content + chunk,
+            }
+            return { ...job, aiMessages: updatedMessages }
+          }
+
+          return job
+        })
+      )
+
+      // 모달이 열려있으면 업데이트
+      setAiChatJob(prev => {
+        if (!prev || prev.id !== jobId) return prev
+
+        const messages = prev.aiMessages || []
+        const lastMessage = messages[messages.length - 1]
+
+        if (lastMessage && lastMessage.role === 'assistant') {
+          const updatedMessages = [...messages]
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            content: lastMessage.content.startsWith('답변을 준비 중')
+              ? chunk
+              : lastMessage.content + chunk,
+          }
+          return { ...prev, aiMessages: updatedMessages }
+        }
+
+        return prev
+      })
+    })
   }, [])
 
   const loadSavedJobs = async () => {
@@ -46,6 +130,87 @@ export default function JobTable() {
       console.error('공고 로드 실패:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 상세 크롤링 시작
+  const handleLoadDetails = async () => {
+    try {
+      setLoadingDetails(true)
+      await window.api.loadJobDetails()
+    } catch (err) {
+      console.error('상세 크롤링 실패:', err)
+      setLoadingDetails(false)
+    }
+  }
+
+  // 상세 크롤링 중단
+  const handleStopDetails = async () => {
+    try {
+      await window.api.stopJobDetails()
+    } catch (err) {
+      console.error('크롤링 중단 실패:', err)
+    }
+  }
+
+  // AI 채팅 열기
+  const handleOpenAiChat = async (job: JobPosting) => {
+    // 읽음 표시 업데이트
+    const updatedJob = {
+      ...job,
+      aiLastReadAt: new Date().toISOString(),
+    }
+
+    // 로컬 상태 업데이트
+    setSavedJobs(prev => prev.map(j => (j.id === job.id ? updatedJob : j)))
+
+    setAiChatJob(updatedJob)
+  }
+
+  // AI 질문 제출
+  const handleAiSubmit = async (prompt: string) => {
+    if (!aiChatJob) return
+
+    const jobId = aiChatJob.id
+    const timestamp = new Date().toISOString()
+
+    // 1. 즉시 user 메시지 + 빈 assistant 메시지 추가
+    const userMessage = { role: 'user' as const, content: prompt, timestamp }
+    const loadingMessage = {
+      role: 'assistant' as const,
+      content: '답변을 준비 중입니다...',
+      timestamp
+    }
+    const optimisticMessages = [...(aiChatJob.aiMessages || []), userMessage, loadingMessage]
+
+    const optimisticJob = {
+      ...aiChatJob,
+      aiMessages: optimisticMessages,
+    }
+
+    // 2. 로컬 상태 즉시 업데이트 (채팅창에 표시)
+    setSavedJobs(prev => prev.map(job => (job.id === jobId ? optimisticJob : job)))
+    setAiChatJob(optimisticJob)
+
+    // 3. 모달 열린 상태 유지 (스트리밍 보기 위해)
+
+    // 4. 백그라운드에서 AI 스트리밍 응답 받기
+    try {
+      setAiLoading(true)
+      const result = await window.api.aiChat(jobId, prompt)
+
+      if (result.success && result.job) {
+        // 5. AI 응답 완료 → 최종 상태 업데이트
+        setSavedJobs(prev => prev.map(job => (job.id === result.job!.id ? result.job! : job)))
+        setAiChatJob(result.job) // 모달도 최종 상태로 업데이트
+      } else {
+        alert(`❌ ${result.error || 'AI 요청 실패'}`)
+      }
+    } catch (err) {
+      console.error('AI 질문 실패:', err)
+      alert('AI 질문 중 오류가 발생했습니다.')
+    } finally {
+      setAiLoading(false)
     }
   }
 
@@ -130,6 +295,62 @@ export default function JobTable() {
         size: 120,
       },
       {
+        id: 'detail',
+        header: '상세보기',
+        cell: ({ row }) => {
+          const hasDetail = !!row.original.detailContent
+          return (
+            <button
+              onClick={() => hasDetail && setSelectedJob(row.original)}
+              disabled={!hasDetail}
+              className={`text-lg font-bold ${
+                hasDetail
+                  ? 'text-green-500 cursor-pointer hover:text-green-400'
+                  : 'text-red-500 cursor-not-allowed'
+              }`}
+            >
+              {hasDetail ? '✓' : '✗'}
+            </button>
+          )
+        },
+        size: 100,
+      },
+      {
+        id: 'ai',
+        header: 'AI',
+        cell: ({ row }) => {
+          const messages = row.original.aiMessages || []
+          const hasMessages = messages.length > 0
+          const lastReadAt = row.original.aiLastReadAt
+
+          // 읽지 않은 assistant 메시지 카운트
+          const unreadCount = messages.filter(msg =>
+            msg.role === 'assistant' &&
+            (!lastReadAt || new Date(msg.timestamp) > new Date(lastReadAt))
+          ).length
+
+          return (
+            <button
+              onClick={() => handleOpenAiChat(row.original)}
+              className={`relative text-2xl ${
+                hasMessages
+                  ? 'text-purple-500 hover:text-purple-400'
+                  : 'text-slate-500 hover:text-slate-400'
+              } cursor-pointer`}
+              title={hasMessages ? 'AI 채팅 보기' : 'AI 채팅 시작'}
+            >
+              💬
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )
+        },
+        size: 80,
+      },
+      {
         id: 'link',
         header: '링크',
         cell: ({ row }) => (
@@ -171,12 +392,69 @@ export default function JobTable() {
   })
 
   return (
-    <div className="flex-1 p-8 overflow-hidden flex flex-col">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-white">저장된 공고 조회</h2>
-        <p className="text-slate-400 mt-2">
-          {loading ? '로딩 중...' : `총 ${savedJobs.length}개 중 ${filteredJobs.length}개 표시`}
-        </p>
+    <>
+      {/* 상세보기 모달 */}
+      {selectedJob && (
+        <JobDetailModal
+          isOpen={!!selectedJob}
+          onClose={() => setSelectedJob(null)}
+          title={selectedJob.title}
+          company={selectedJob.company}
+          detailContent={selectedJob.detailContent || ''}
+          detailLoadedAt={selectedJob.detailLoadedAt || ''}
+        />
+      )}
+
+      {/* AI 채팅 모달 */}
+      {aiChatJob && (
+        <AiChatModal
+          isOpen={!!aiChatJob}
+          onClose={() => setAiChatJob(null)}
+          onSubmit={handleAiSubmit}
+          jobTitle={aiChatJob.title}
+          company={aiChatJob.company}
+          messages={aiChatJob.aiMessages || []}
+          loading={aiLoading}
+        />
+      )}
+
+      <div className="flex-1 p-8 overflow-hidden flex flex-col">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">저장된 공고 조회</h2>
+          <p className="text-slate-400 mt-2">
+            {loading ? '로딩 중...' : `총 ${savedJobs.length}개 중 ${filteredJobs.length}개 표시`}
+          </p>
+        </div>
+
+        {/* 상세 크롤링 버튼 */}
+        <div className="flex gap-3">
+          {!loadingDetails ? (
+            <button
+              onClick={handleLoadDetails}
+              disabled={savedJobs.length === 0}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                savedJobs.length === 0
+                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              📥 상세 내용 크롤링 시작
+            </button>
+          ) : (
+            <>
+              <div className="px-6 py-3 bg-slate-700 text-slate-300 rounded-lg font-semibold">
+                ⏳ 상세 내용 로딩 중...
+              </div>
+              <button
+                onClick={handleStopDetails}
+                className="px-6 py-3 rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                ⏹️ 중단
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <JobFilter filters={filters} onFilterChange={setFilters} onReset={handleFilterReset} />
@@ -265,5 +543,6 @@ export default function JobTable() {
         )}
       </div>
     </div>
+    </>
   )
 }

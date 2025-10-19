@@ -31,6 +31,24 @@ export interface JobPosting {
   // 메타데이터
   crawledAt: string // 크롤링 시각 (ISO 8601)
   rawData?: unknown // 원본 데이터 (디버깅/재처리용)
+  detailContent?: string // 상세 내용 (HTML 또는 텍스트)
+  detailLoadedAt?: string // 상세 내용 로드 시각 (ISO 8601)
+
+  // AI 분석
+  aiPrompt?: string // AI에게 보낸 프롬프트 (deprecated - aiMessages 사용)
+  aiResponse?: string // AI 응답 내용 (deprecated - aiMessages 사용)
+  aiRespondedAt?: string // AI 응답 시각 (deprecated - aiMessages 사용)
+  aiMessages?: AiChatMessage[] // AI 채팅 히스토리
+  aiLastReadAt?: string // 마지막으로 채팅을 읽은 시각
+}
+
+/**
+ * AI 채팅 메시지
+ */
+export interface AiChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
 }
 
 /**
@@ -54,6 +72,13 @@ export interface ICrawler<TRawData = unknown> {
    * @returns 원본 데이터 배열
    */
   fetchJobList(options?: CrawlerOptions): Promise<TRawData[]>
+
+  /**
+   * 특정 공고의 상세 내용 크롤링
+   * @param url 공고 상세 페이지 URL
+   * @returns 상세 내용 (HTML 또는 텍스트)
+   */
+  fetchJobDetail?(url: string): Promise<string>
 
   /**
    * 브라우저 인스턴스 종료

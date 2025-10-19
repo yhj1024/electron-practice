@@ -113,6 +113,22 @@ export class JobStorage implements IStorage {
   }
 
   /**
+   * 개별 공고 업데이트 (detailContent 등)
+   * @param updatedJob 업데이트할 공고 데이터
+   */
+  async updateJob(updatedJob: JobPosting): Promise<void> {
+    await this.ensureDataDir()
+    const jobs = await this.loadJobs()
+
+    // 같은 ID의 공고 찾아서 교체
+    const index = jobs.findIndex(job => job.id === updatedJob.id)
+    if (index !== -1) {
+      jobs[index] = updatedJob
+      await this.saveNormalizedData(jobs)
+    }
+  }
+
+  /**
    * 모든 데이터 삭제
    */
   async clearAll(): Promise<void> {

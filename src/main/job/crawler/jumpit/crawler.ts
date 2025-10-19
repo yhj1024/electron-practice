@@ -94,6 +94,78 @@ export class JumpitCrawler implements ICrawler<JumpitRawJob> {
   }
 
   /**
+   * 공고 상세 내용 크롤링
+   */
+  async fetchJobDetail(url: string): Promise<string> {
+    try {
+      // URL에서 ID 추출
+      const match = url.match(/\/position\/(\d+)/)
+      if (!match) {
+        return '상세 정보를 불러올 수 없습니다.'
+      }
+
+      const jobId = match[1]
+
+      // 점핏 상세 API 호출
+      const apiUrl = `https://jumpit-api.saramin.co.kr/api/position/${jobId}`
+      const response = await httpClient.get<{
+        result: {
+          title?: string
+          serviceInfo?: string
+          responsibility?: string
+          qualifications?: string
+          preferredRequirements?: string
+          welfares?: string
+          recruitProcess?: string
+        }
+      }>(apiUrl)
+
+      const result = response.result
+      if (!result) {
+        return '상세 정보를 불러올 수 없습니다.'
+      }
+
+      // 상세 내용 조합
+      const sections: string[] = []
+
+      if (result.serviceInfo) {
+        sections.push('## 회사 소개')
+        sections.push(result.serviceInfo.trim())
+      }
+
+      if (result.responsibility) {
+        sections.push('\n## 주요 업무')
+        sections.push(result.responsibility.trim())
+      }
+
+      if (result.qualifications) {
+        sections.push('\n## 자격 요건')
+        sections.push(result.qualifications.trim())
+      }
+
+      if (result.preferredRequirements) {
+        sections.push('\n## 우대 사항')
+        sections.push(result.preferredRequirements.trim())
+      }
+
+      if (result.welfares) {
+        sections.push('\n## 혜택 및 복지')
+        sections.push(result.welfares.trim())
+      }
+
+      if (result.recruitProcess) {
+        sections.push('\n## 채용 절차')
+        sections.push(result.recruitProcess.trim())
+      }
+
+      return sections.join('\n')
+    } catch (err) {
+      console.error('상세 페이지 크롤링 실패:', err)
+      return '상세 정보를 불러올 수 없습니다.'
+    }
+  }
+
+  /**
    * 리소스 정리 (API 기반이라 브라우저 없음)
    */
   async close(): Promise<void> {

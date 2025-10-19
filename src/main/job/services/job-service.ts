@@ -136,6 +136,14 @@ export class JobService {
   }
 
   /**
+   * 개별 공고 업데이트
+   * @param job 업데이트할 공고 데이터
+   */
+  async updateJob(job: JobPosting): Promise<void> {
+    await this.storage.updateJob(job)
+  }
+
+  /**
    * 모든 데이터 삭제
    */
   async clearAllData(): Promise<void> {

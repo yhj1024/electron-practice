@@ -46,9 +46,11 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
     "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
     "puppeteer-core": "^24.25.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.4"
   }
 }

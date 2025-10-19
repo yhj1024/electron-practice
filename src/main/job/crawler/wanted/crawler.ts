@@ -127,6 +127,63 @@ export class WantedCrawler implements ICrawler<WantedRawJob> {
   }
 
   /**
+   * 공고 상세 내용 크롤링
+   */
+  async fetchJobDetail(url: string): Promise<string> {
+    try {
+      // URL에서 ID 추출
+      const match = url.match(/\/wd\/(\d+)/)
+      if (!match) {
+        return '상세 정보를 불러올 수 없습니다.'
+      }
+
+      const jobId = match[1]
+
+      // 원티드 상세 API 호출
+      const apiUrl = `https://www.wanted.co.kr/api/chaos/jobs/v4/${jobId}/details`
+      const response = await httpClient.get<{ data: { job: { detail: { intro: string; main_tasks: string; requirements: string; preferred_points: string; benefits: string } } } }>(apiUrl)
+
+      const detail = response.data?.job?.detail
+      if (!detail) {
+        return '상세 정보를 불러올 수 없습니다.'
+      }
+
+      // 상세 내용 조합
+      const sections: string[] = []
+
+      if (detail.intro) {
+        sections.push('## 회사 소개')
+        sections.push(detail.intro.trim())
+      }
+
+      if (detail.main_tasks) {
+        sections.push('\n## 주요 업무')
+        sections.push(detail.main_tasks.trim())
+      }
+
+      if (detail.requirements) {
+        sections.push('\n## 자격 요건')
+        sections.push(detail.requirements.trim())
+      }
+
+      if (detail.preferred_points) {
+        sections.push('\n## 우대 사항')
+        sections.push(detail.preferred_points.trim())
+      }
+
+      if (detail.benefits) {
+        sections.push('\n## 혜택 및 복지')
+        sections.push(detail.benefits.trim())
+      }
+
+      return sections.join('\n')
+    } catch (err) {
+      console.error('상세 페이지 크롤링 실패:', err)
+      return '상세 정보를 불러올 수 없습니다.'
+    }
+  }
+
+  /**
    * 리소스 정리 (API 기반이라 브라우저 없음)
    */
   async close(): Promise<void> {

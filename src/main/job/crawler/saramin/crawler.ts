@@ -177,6 +177,87 @@ export class SaraminCrawler implements ICrawler<SaraminRawJob> {
   }
 
   /**
+   * 공고 상세 내용 크롤링
+   */
+  async fetchJobDetail(url: string): Promise<string> {
+    try {
+      const html = await httpClient.getText(url)
+      const $ = cheerio.load(html)
+
+      // 상세 내용 추출
+      const sections: string[] = []
+
+      // 제목
+      const title = $('.tit_job').text().trim()
+      if (title) sections.push(`# ${title}`)
+
+      // 회사명
+      const company = $('.company_nm a').text().trim()
+      if (company) sections.push(`## ${company}`)
+
+      // 주요 업무
+      const jobDescription = $('.cont_wrap .content')
+        .first()
+        .text()
+        .trim()
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+      if (jobDescription) {
+        sections.push('## 주요 업무')
+        sections.push(jobDescription)
+      }
+
+      // 자격 요건
+      const requirements = $('.cont_wrap .content')
+        .eq(1)
+        .text()
+        .trim()
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+      if (requirements) {
+        sections.push('## 자격 요건')
+        sections.push(requirements)
+      }
+
+      // 우대 사항
+      const preferred = $('.cont_wrap .content')
+        .eq(2)
+        .text()
+        .trim()
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+      if (preferred) {
+        sections.push('## 우대 사항')
+        sections.push(preferred)
+      }
+
+      // 근무 조건
+      const conditions = $('.cont_wrap .conditions')
+        .text()
+        .trim()
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+      if (conditions) {
+        sections.push('## 근무 조건')
+        sections.push(conditions)
+      }
+
+      return sections.join('\n\n')
+    } catch (err) {
+      console.error('상세 페이지 크롤링 실패:', err)
+      return '상세 정보를 불러올 수 없습니다.'
+    }
+  }
+
+  /**
    * 리소스 정리
    */
   async close(): Promise<void> {
