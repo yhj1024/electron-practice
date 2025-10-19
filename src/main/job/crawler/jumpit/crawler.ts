@@ -1,6 +1,6 @@
-import {httpClient} from '../common/http-client'
-import {CrawlerOptions, ICrawler} from '../common/types'
-import {JumpitApiResponse, JumpitRawJob} from './types'
+import { httpClient } from '../common/http-client'
+import { CrawlerOptions, ICrawler } from '../common/types'
+import { JumpitApiResponse, JumpitRawJob } from './types'
 
 /**
  * 점핏 크롤러
@@ -57,11 +57,7 @@ export class JumpitCrawler implements ICrawler<JumpitRawJob> {
    */
   private buildApiUrl(options?: CrawlerOptions, page = 1): string {
     // URL을 직접 문자열로 조합 (URLSearchParams 버그 회피)
-    const queryParts: string[] = [
-      `sort=popular`,
-      `highlight=false`,
-      `page=${page}`,
-    ]
+    const queryParts: string[] = [`sort=popular`, `highlight=false`, `page=${page}`]
 
     // 직무 카테고리 (기본: 서버/백엔드, 프론트엔드)
     this.DEFAULT_JOB_CATEGORIES.forEach(category => {

@@ -86,8 +86,8 @@ export class JobService {
     const wantedJobs = await this.crawlSite('wanted', options)
     results.push(...wantedJobs)
 
-    // const saraminJobs = await this.crawlSite('saramin', options)
-    // results.push(...saraminJobs)
+    const saraminJobs = await this.crawlSite('saramin', options)
+    results.push(...saraminJobs)
 
     const jumpitJobs = await this.crawlSite('jumpit', options)
     results.push(...jumpitJobs)

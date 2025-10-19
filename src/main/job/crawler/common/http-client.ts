@@ -14,7 +14,7 @@ export class HttpClient {
   private defaultRetries = 3
 
   /**
-   * GET 요청
+   * GET 요청 (JSON)
    */
   async get<T>(url: string, options: HttpClientOptions = {}): Promise<T> {
     const { timeout = this.defaultTimeout, headers = {}, retries = this.defaultRetries } = options
@@ -42,6 +42,40 @@ export class HttpClient {
       }
 
       return (await response.json()) as T
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
+  /**
+   * GET 요청 (HTML/Text)
+   */
+  async getText(url: string, options: HttpClientOptions = {}): Promise<string> {
+    const { timeout = this.defaultTimeout, headers = {}, retries = this.defaultRetries } = options
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+    try {
+      const response = await this.fetchWithRetry(
+        url,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            ...headers,
+          },
+          signal: controller.signal,
+        },
+        retries
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      return await response.text()
     } finally {
       clearTimeout(timeoutId)
     }

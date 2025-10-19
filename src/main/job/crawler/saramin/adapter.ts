@@ -18,12 +18,9 @@ export class SaraminAdapter implements IAdapter<SaraminRawJob> {
       title: raw.title,
       company: raw.company,
       url: raw.url,
-      imageUrl: raw.imageUrl,
       location: raw.location,
       requirements: {
         experience: raw.experience,
-        education: raw.education,
-        employmentType: raw.employmentType,
       },
       crawledAt: new Date().toISOString(),
       rawData: raw, // 원본 데이터 보관
