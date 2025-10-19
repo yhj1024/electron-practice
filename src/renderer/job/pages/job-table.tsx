@@ -93,7 +93,7 @@ export default function JobTable() {
         accessorKey: 'title',
         header: '제목',
         cell: info => <span className="text-slate-200">{info.getValue() as string}</span>,
-        size: 400,
+        size: 500,
       },
       {
         accessorKey: 'location',
