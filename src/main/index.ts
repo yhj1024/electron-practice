@@ -142,6 +142,23 @@ function registerIpcHandlers() {
   ipcMain.handle('ai-chat', async (event, jobId: string, prompt: string) => {
     console.log(`🤖 AI 채팅 요청 - Job ID: ${jobId}, Prompt: "${prompt.substring(0, 50)}..."`)
 
+    // 빈 프롬프트: 읽음 표시 업데이트만 수행
+    if (!prompt.trim()) {
+      try {
+        const jobs = await jobService.getJobs()
+        const job = jobs.find(j => j.id === jobId)
+        if (job) {
+          const updatedJob = { ...job, aiLastReadAt: new Date().toISOString() }
+          await jobService.updateJob(updatedJob)
+          return { success: true, job: updatedJob }
+        }
+        return { success: false, error: '공고를 찾을 수 없습니다.' }
+      } catch (err) {
+        console.error('❌ 읽음 표시 업데이트 오류:', err)
+        return { success: false, error: '읽음 표시 업데이트 실패' }
+      }
+    }
+
     try {
       // AI 서비스 초기화 (lazy loading)
       if (!aiService) {

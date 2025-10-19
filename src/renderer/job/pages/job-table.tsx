@@ -52,6 +52,7 @@ export default function JobTable() {
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null)
   const [aiChatJob, setAiChatJob] = useState<JobPosting | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiProcessingJobId, setAiProcessingJobId] = useState<string | null>(null) // AI 작업 중인 공고 ID
 
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
@@ -82,19 +83,23 @@ export default function JobTable() {
           const messages = job.aiMessages || []
           const lastMessage = messages[messages.length - 1]
 
-          // 마지막 메시지가 assistant이고 "답변을 준비 중입니다..."이거나 이미 응답 중이면 업데이트
+          // 마지막 메시지가 assistant이면 업데이트, 아니면 새로 추가
           if (lastMessage && lastMessage.role === 'assistant') {
             const updatedMessages = [...messages]
             updatedMessages[updatedMessages.length - 1] = {
               ...lastMessage,
-              content: lastMessage.content.startsWith('답변을 준비 중')
-                ? chunk
-                : lastMessage.content + chunk,
+              content: lastMessage.content + chunk,
             }
             return { ...job, aiMessages: updatedMessages }
+          } else {
+            // 첫 청크: assistant 메시지 새로 추가
+            const newMessage = {
+              role: 'assistant' as const,
+              content: chunk,
+              timestamp: new Date().toISOString(),
+            }
+            return { ...job, aiMessages: [...messages, newMessage] }
           }
-
-          return job
         })
       )
 
@@ -109,14 +114,18 @@ export default function JobTable() {
           const updatedMessages = [...messages]
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
-            content: lastMessage.content.startsWith('답변을 준비 중')
-              ? chunk
-              : lastMessage.content + chunk,
+            content: lastMessage.content + chunk,
           }
           return { ...prev, aiMessages: updatedMessages }
+        } else {
+          // 첫 청크: assistant 메시지 새로 추가
+          const newMessage = {
+            role: 'assistant' as const,
+            content: chunk,
+            timestamp: new Date().toISOString(),
+          }
+          return { ...prev, aiMessages: [...messages, newMessage] }
         }
-
-        return prev
       })
     })
   }, [])
@@ -154,17 +163,8 @@ export default function JobTable() {
   }
 
   // AI 채팅 열기
-  const handleOpenAiChat = async (job: JobPosting) => {
-    // 읽음 표시 업데이트
-    const updatedJob = {
-      ...job,
-      aiLastReadAt: new Date().toISOString(),
-    }
-
-    // 로컬 상태 업데이트
-    setSavedJobs(prev => prev.map(j => (j.id === job.id ? updatedJob : j)))
-
-    setAiChatJob(updatedJob)
+  const handleOpenAiChat = (job: JobPosting) => {
+    setAiChatJob(job)
   }
 
   // AI 질문 제출
@@ -174,41 +174,44 @@ export default function JobTable() {
     const jobId = aiChatJob.id
     const timestamp = new Date().toISOString()
 
-    // 1. 즉시 user 메시지 + 빈 assistant 메시지 추가
+    // 1. 즉시 user 메시지만 추가
     const userMessage = { role: 'user' as const, content: prompt, timestamp }
-    const loadingMessage = {
-      role: 'assistant' as const,
-      content: '답변을 준비 중입니다...',
-      timestamp
-    }
-    const optimisticMessages = [...(aiChatJob.aiMessages || []), userMessage, loadingMessage]
+    const optimisticMessages = [...(aiChatJob.aiMessages || []), userMessage]
 
     const optimisticJob = {
       ...aiChatJob,
       aiMessages: optimisticMessages,
     }
 
-    // 2. 로컬 상태 즉시 업데이트 (채팅창에 표시)
+    // 2. 로컬 상태 즉시 업데이트
     setSavedJobs(prev => prev.map(job => (job.id === jobId ? optimisticJob : job)))
     setAiChatJob(optimisticJob)
 
-    // 3. 모달 열린 상태 유지 (스트리밍 보기 위해)
+    // 3. AI 작업 중 표시
+    setAiProcessingJobId(jobId)
 
-    // 4. 백그라운드에서 AI 스트리밍 응답 받기
+    // 4. 모달 유지 (AI 응답 볼 수 있도록)
+
+    // 5. 백그라운드에서 AI 스트리밍 응답 받기
     try {
       setAiLoading(true)
       const result = await window.api.aiChat(jobId, prompt)
 
       if (result.success && result.job) {
-        // 5. AI 응답 완료 → 최종 상태 업데이트
+        // 6. AI 응답 완료 → 최종 상태 업데이트
         setSavedJobs(prev => prev.map(job => (job.id === result.job!.id ? result.job! : job)))
-        setAiChatJob(result.job) // 모달도 최종 상태로 업데이트
+
+        // 7. AI 작업 완료 표시 제거 및 팝업 자동으로 열기
+        setAiProcessingJobId(null)
+        setAiChatJob(result.job)
       } else {
         alert(`❌ ${result.error || 'AI 요청 실패'}`)
+        setAiProcessingJobId(null)
       }
     } catch (err) {
       console.error('AI 질문 실패:', err)
       alert('AI 질문 중 오류가 발생했습니다.')
+      setAiProcessingJobId(null)
     } finally {
       setAiLoading(false)
     }
@@ -321,31 +324,27 @@ export default function JobTable() {
         cell: ({ row }) => {
           const messages = row.original.aiMessages || []
           const hasMessages = messages.length > 0
-          const lastReadAt = row.original.aiLastReadAt
-
-          // 읽지 않은 assistant 메시지 카운트
-          const unreadCount = messages.filter(msg =>
-            msg.role === 'assistant' &&
-            (!lastReadAt || new Date(msg.timestamp) > new Date(lastReadAt))
-          ).length
+          const isProcessing = aiProcessingJobId === row.original.id
 
           return (
-            <button
-              onClick={() => handleOpenAiChat(row.original)}
-              className={`relative text-2xl ${
-                hasMessages
-                  ? 'text-purple-500 hover:text-purple-400'
-                  : 'text-slate-500 hover:text-slate-400'
-              } cursor-pointer`}
-              title={hasMessages ? 'AI 채팅 보기' : 'AI 채팅 시작'}
-            >
-              💬
-              {unreadCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {unreadCount}
-                </span>
+            <div className="relative">
+              <button
+                onClick={() => handleOpenAiChat(row.original)}
+                className={`text-2xl ${
+                  hasMessages
+                    ? 'text-purple-500 hover:text-purple-400'
+                    : 'text-slate-500 hover:text-slate-400'
+                } cursor-pointer`}
+                title={hasMessages ? 'AI 채팅 보기' : 'AI 채팅 시작'}
+              >
+                💬
+              </button>
+              {isProcessing && (
+                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg animate-pulse z-50">
+                  답변 중...
+                </div>
               )}
-            </button>
+            </div>
           )
         },
         size: 80,
@@ -366,7 +365,7 @@ export default function JobTable() {
         size: 80,
       },
     ],
-    []
+    [aiProcessingJobId]
   )
 
   // TanStack Table 설정
