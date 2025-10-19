@@ -42,6 +42,8 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.12",
     "puppeteer-core": "^24.25.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

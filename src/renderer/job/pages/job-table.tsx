@@ -1,4 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  ColumnDef,
+  flexRender,
+  SortingState,
+} from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import JobFilter, { JobFilterOptions } from '../components/job-filter'
 
 interface JobPosting {
@@ -20,6 +29,9 @@ export default function JobTable() {
   const [savedJobs, setSavedJobs] = useState<JobPosting[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<JobFilterOptions>(initialFilters)
+  const [sorting, setSorting] = useState<SortingState>([])
+
+  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadSavedJobs()
@@ -48,15 +60,97 @@ export default function JobTable() {
       }
 
       // 출처 필터
-      return !(filters.source && job.source !== filters.source);
-
-
+      return !(filters.source && job.source !== filters.source)
     })
   }, [savedJobs, filters])
 
   const handleFilterReset = () => {
     setFilters(initialFilters)
   }
+
+  // 컬럼 정의
+  const columns = useMemo<ColumnDef<JobPosting>[]>(
+    () => [
+      {
+        accessorKey: 'source',
+        header: '출처',
+        cell: info => (
+          <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded text-xs font-medium">
+            {info.getValue() as string}
+          </span>
+        ),
+        size: 100,
+      },
+      {
+        accessorKey: 'company',
+        header: '회사명',
+        cell: info => (
+          <span className="text-slate-300 font-medium">{info.getValue() as string}</span>
+        ),
+        size: 150,
+      },
+      {
+        accessorKey: 'title',
+        header: '제목',
+        cell: info => <span className="text-slate-200">{info.getValue() as string}</span>,
+        size: 400,
+      },
+      {
+        accessorKey: 'location',
+        header: '지역',
+        cell: info => <span className="text-slate-400">{info.getValue() as string}</span>,
+        size: 120,
+      },
+      {
+        accessorKey: 'crawledAt',
+        header: '수집일',
+        cell: info => (
+          <span className="text-slate-500">
+            {new Date(info.getValue() as string).toLocaleDateString('ko-KR')}
+          </span>
+        ),
+        size: 120,
+      },
+      {
+        id: 'link',
+        header: '링크',
+        cell: ({ row }) => (
+          <a
+            href={row.original.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 hover:underline"
+          >
+            링크
+          </a>
+        ),
+        size: 80,
+      },
+    ],
+    []
+  )
+
+  // TanStack Table 설정
+  const table = useReactTable({
+    data: filteredJobs,
+    columns,
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
+
+  const { rows } = table.getRowModel()
+
+  // Virtual 스크롤 설정
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 48, // 행 높이 (px)
+    overscan: 10, // 화면 밖에 미리 렌더링할 행 수
+  })
 
   return (
     <div className="flex-1 p-8 overflow-hidden flex flex-col">
@@ -71,7 +165,11 @@ export default function JobTable() {
 
       <JobFilter filters={filters} onFilterChange={setFilters} onReset={handleFilterReset} />
 
-      <div className="flex-1 overflow-y-auto bg-slate-900 rounded-lg">
+      <div
+        ref={tableContainerRef}
+        className="flex-1 overflow-auto bg-slate-900 rounded-lg"
+        style={{ contain: 'strict' }}
+      >
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <p className="text-slate-500">로딩 중...</p>
@@ -83,62 +181,71 @@ export default function JobTable() {
             </p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-slate-800 sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  출처
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  회사명
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  제목
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  지역
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  수집일
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300">
-                  링크
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredJobs.map(job => (
-                <tr
-                  key={job.id}
-                  className="border-t border-slate-800 hover:bg-slate-800/50 transition-colors"
+          <div className="w-full">
+            {/* Header */}
+            <div className="bg-slate-800 sticky top-0 z-10 flex">
+              {table.getHeaderGroups()[0].headers.map(header => (
+                <div
+                  key={header.id}
+                  className="px-4 py-3 text-left text-sm font-semibold text-slate-300 select-none"
+                  style={{ width: header.getSize(), flexShrink: 0 }}
                 >
-                  <td className="px-4 py-3 text-sm text-slate-400">
-                    <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded text-xs font-medium">
-                      {job.source}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-300 font-medium">
-                    {job.company}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-200">{job.title}</td>
-                  <td className="px-4 py-3 text-sm text-slate-400">{job.location}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500">
-                    {new Date(job.crawledAt).toLocaleDateString('ko-KR')}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <a
-                      href={job.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 hover:underline"
+                  {header.isPlaceholder ? null : (
+                    <div
+                      className={
+                        header.column.getCanSort()
+                          ? 'cursor-pointer hover:text-white flex items-center gap-2'
+                          : ''
+                      }
+                      onClick={header.column.getToggleSortingHandler()}
                     >
-                      링크
-                    </a>
-                  </td>
-                </tr>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {{
+                        asc: ' 🔼',
+                        desc: ' 🔽',
+                      }[header.column.getIsSorted() as string] ?? null}
+                    </div>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Virtual rows */}
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                const row = rows[virtualRow.index]
+                return (
+                  <div
+                    key={row.id}
+                    className="border-t border-slate-800 hover:bg-slate-800/50 transition-colors flex"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      <div
+                        key={cell.id}
+                        className="px-4 py-3 text-sm"
+                        style={{ width: cell.column.getSize(), flexShrink: 0 }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>
