@@ -17,8 +17,8 @@ export default function CrawlScreen() {
       setJobCount(null)
       setLogs([])
 
-      addLog('🔍 크롤링 시작...')
-      const jobs = await window.api.crawlWanted({
+      addLog('🔍 모든 사이트 크롤링 시작...')
+      const jobs = await window.api.crawlAllSites({
         locations: ['강남구', '관악구', '구로구', '금천구', '동작구', '서초구'],
       })
 

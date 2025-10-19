@@ -9,7 +9,7 @@ import { WantedRawJob, WantedApiResponse } from './types'
 export class WantedCrawler implements ICrawler<WantedRawJob> {
   private readonly API_BASE = 'https://www.wanted.co.kr/api/chaos/navigation/v1/results'
   private readonly DEFAULT_JOB_GROUP_ID = 518 // 개발
-  private readonly DEFAULT_JOB_IDS = 873 // 웹 개발자
+  private readonly DEFAULT_JOB_IDS = [10110, 873, 669, 895] // 소프트웨어, 웹, 프론트엔드, Node
 
   /**
    * 채용 공고 목록 수집 (페이지네이션으로 전체 데이터 수집)
@@ -30,7 +30,9 @@ export class WantedCrawler implements ICrawler<WantedRawJob> {
 
       if (response.data && response.data.length > 0) {
         allJobs.push(...response.data)
-        console.log(`  → ${offset + response.data.length}개 수집 중... (현재 페이지: ${response.data.length}개)`)
+        console.log(
+          `  → ${offset + response.data.length}개 수집 중... (현재 페이지: ${response.data.length}개)`
+        )
 
         // 다음 페이지가 있는지 확인 (응답이 pageSize보다 적으면 마지막 페이지)
         if (response.data.length < pageSize) {
@@ -58,9 +60,13 @@ export class WantedCrawler implements ICrawler<WantedRawJob> {
   private buildApiUrl(options?: CrawlerOptions, offset = 0, limit = 100): string {
     const params = new URLSearchParams({
       job_group_id: String(this.DEFAULT_JOB_GROUP_ID),
-      job_ids: String(this.DEFAULT_JOB_IDS),
       country: 'kr',
       job_sort: 'job.latest_order',
+    })
+
+    // 직무 카테고리 (소프트웨어, 웹, 프론트엔드, Node)
+    this.DEFAULT_JOB_IDS.forEach(jobId => {
+      params.append('job_ids', String(jobId))
     })
 
     // 경력 조건 (0~10년 범위)

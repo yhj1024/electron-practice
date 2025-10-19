@@ -12,6 +12,18 @@ export class WantedAdapter implements IAdapter<WantedRawJob> {
    * @returns 통일된 채용 공고 객체
    */
   adapt(raw: WantedRawJob): JobPosting {
+    // 경력 요구사항 생성 (annual_to가 100이면 "이상"으로 표기)
+    let experience: string
+    if (raw.annual_from === 0 && raw.annual_to === 0) {
+      experience = '신입'
+    } else if (raw.annual_to >= 100) {
+      experience = `${raw.annual_from}년 이상`
+    } else if (raw.annual_from === raw.annual_to) {
+      experience = `${raw.annual_from}년`
+    } else {
+      experience = `${raw.annual_from}~${raw.annual_to}년`
+    }
+
     return {
       id: `wanted-${raw.id}`,
       source: 'wanted',
@@ -21,7 +33,7 @@ export class WantedAdapter implements IAdapter<WantedRawJob> {
       imageUrl: raw.title_img.thumb,
       location: `${raw.address.location} ${raw.address.district}`,
       requirements: {
-        experience: `${raw.annual_from}~${raw.annual_to}년`,
+        experience,
         employmentType: raw.employment_type,
       },
       crawledAt: new Date().toISOString(),

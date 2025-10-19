@@ -74,11 +74,19 @@ export default function JobTable() {
       {
         accessorKey: 'source',
         header: '출처',
-        cell: info => (
-          <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded text-xs font-medium">
-            {info.getValue() as string}
-          </span>
-        ),
+        cell: info => {
+          const source = info.getValue() as string
+          const colorClass =
+            source === 'wanted'
+              ? 'bg-blue-900/50 text-pink-400' // 원티드: 하늘색 배경 + 분홍색 글자
+              : source === 'jumpit'
+                ? 'bg-green-900/50 text-green-300' // 점핏: 초록색
+                : 'bg-orange-900/50 text-orange-300' // 사람인: 오렌지
+
+          return (
+            <span className={`px-2 py-1 ${colorClass} rounded text-xs font-medium`}>{source}</span>
+          )
+        },
         size: 100,
       },
       {
@@ -100,6 +108,16 @@ export default function JobTable() {
         header: '지역',
         cell: info => <span className="text-slate-400">{info.getValue() as string}</span>,
         size: 120,
+      },
+      {
+        id: 'experience',
+        header: '경력',
+        cell: ({ row }) => (
+          <span className="text-slate-400 text-xs">
+            {row.original.requirements?.experience || '-'}
+          </span>
+        ),
+        size: 100,
       },
       {
         accessorKey: 'crawledAt',
@@ -157,9 +175,7 @@ export default function JobTable() {
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-white">저장된 공고 조회</h2>
         <p className="text-slate-400 mt-2">
-          {loading
-            ? '로딩 중...'
-            : `총 ${savedJobs.length}개 중 ${filteredJobs.length}개 표시`}
+          {loading ? '로딩 중...' : `총 ${savedJobs.length}개 중 ${filteredJobs.length}개 표시`}
         </p>
       </div>
 

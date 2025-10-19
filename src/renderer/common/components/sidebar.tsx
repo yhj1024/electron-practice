@@ -3,12 +3,8 @@ import { NavLink } from 'react-router-dom'
 import { menuConfig } from '../config/menu-config'
 
 export default function Sidebar() {
-
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(
-    menuConfig.reduce(
-      (acc, menu) => ({ ...acc, [menu.id]: true }),
-      {}
-    )
+    menuConfig.reduce((acc, menu) => ({ ...acc, [menu.id]: true }), {})
   )
 
   const toggleMenu = (menuId: string) => {
