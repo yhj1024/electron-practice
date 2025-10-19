@@ -65,6 +65,7 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
+      'no-undef': 'off', // TypeScript가 타입 체크를 수행하므로 비활성화
 
       // Prettier 통합
       'prettier/prettier': 'error',

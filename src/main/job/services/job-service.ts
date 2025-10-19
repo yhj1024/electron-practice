@@ -25,50 +25,79 @@ export class JobService {
    * @returns 통일된 채용 공고 배열
    */
   async crawlSite(source: JobSource, options?: CrawlerOptions): Promise<JobPosting[]> {
+    const startTime = Date.now()
+    const logId = `${source}-${new Date().toISOString()}`
+
     let jobs: JobPosting[] = []
+    let status: 'success' | 'failed' | 'partial' = 'success'
+    let error: string | undefined
 
-    switch (source) {
-      case 'wanted': {
-        const crawler = new WantedCrawler()
-        const adapter = new WantedAdapter()
-        try {
-          const rawJobs = await crawler.fetchJobList(options)
-          jobs = rawJobs.map(raw => adapter.adapt(raw))
-          await this.storage.saveRawData('wanted', rawJobs)
-          await this.storage.saveNormalizedData(jobs)
-        } finally {
-          await crawler.close()
+    try {
+      switch (source) {
+        case 'wanted': {
+          const crawler = new WantedCrawler()
+          const adapter = new WantedAdapter()
+          try {
+            const rawJobs = await crawler.fetchJobList(options)
+            jobs = rawJobs.map(raw => adapter.adapt(raw))
+            await this.storage.saveRawData('wanted', rawJobs)
+            await this.storage.saveNormalizedData(jobs)
+          } finally {
+            await crawler.close()
+          }
+          break
         }
-        break
+
+        case 'saramin': {
+          const crawler = new SaraminCrawler()
+          const adapter = new SaraminAdapter()
+          try {
+            const rawJobs = await crawler.fetchJobList(options)
+            jobs = rawJobs.map(raw => adapter.adapt(raw))
+            await this.storage.saveRawData('saramin', rawJobs)
+            await this.storage.saveNormalizedData(jobs)
+          } finally {
+            await crawler.close()
+          }
+          break
+        }
+
+        case 'jumpit': {
+          const crawler = new JumpitCrawler()
+          const adapter = new JumpitAdapter()
+          try {
+            const rawJobs = await crawler.fetchJobList(options)
+            jobs = rawJobs.map(raw => adapter.adapt(raw))
+            await this.storage.saveRawData('jumpit', rawJobs)
+            await this.storage.saveNormalizedData(jobs)
+          } finally {
+            await crawler.close()
+          }
+          break
+        }
       }
 
-      case 'saramin': {
-        const crawler = new SaraminCrawler()
-        const adapter = new SaraminAdapter()
-        try {
-          const rawJobs = await crawler.fetchJobList(options)
-          jobs = rawJobs.map(raw => adapter.adapt(raw))
-          await this.storage.saveRawData('saramin', rawJobs)
-          await this.storage.saveNormalizedData(jobs)
-        } finally {
-          await crawler.close()
-        }
-        break
-      }
+      status = jobs.length > 0 ? 'success' : 'partial'
+    } catch (err) {
+      status = 'failed'
+      error = err instanceof Error ? err.message : String(err)
+      throw err
+    } finally {
+      // 크롤링 로그 저장
+      const completedAt = new Date().toISOString()
+      const duration = Date.now() - startTime
 
-      case 'jumpit': {
-        const crawler = new JumpitCrawler()
-        const adapter = new JumpitAdapter()
-        try {
-          const rawJobs = await crawler.fetchJobList(options)
-          jobs = rawJobs.map(raw => adapter.adapt(raw))
-          await this.storage.saveRawData('jumpit', rawJobs)
-          await this.storage.saveNormalizedData(jobs)
-        } finally {
-          await crawler.close()
-        }
-        break
-      }
+      await this.storage.saveCrawlLog({
+        id: logId,
+        source,
+        startedAt: new Date(startTime).toISOString(),
+        completedAt,
+        duration,
+        totalItems: jobs.length,
+        pagesScraped: Math.ceil(jobs.length / 100), // 추정값
+        status,
+        error,
+      })
     }
 
     return jobs

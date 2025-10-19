@@ -76,7 +76,10 @@ export class SaraminCrawler implements ICrawler<SaraminRawJob> {
   /**
    * 개별 채용 공고 엘리먼트 파싱
    */
-  private parseJobElement($: cheerio.CheerioAPI, element: cheerio.Cheerio<Element>): SaraminRawJob | null {
+  private parseJobElement(
+    $: cheerio.CheerioAPI,
+    element: cheerio.Cheerio<Element>
+  ): SaraminRawJob | null {
     try {
       // rec_idx 추출 (공고 ID)
       const recLink = element.find('.job_tit a')
