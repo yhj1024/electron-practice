@@ -238,8 +238,8 @@ app.whenReady().then(() => {
   registerIpcHandlers()
 
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1800,
+    height: 960,
     webPreferences: {
       preload: VITE_PRELOAD_PATH || path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
